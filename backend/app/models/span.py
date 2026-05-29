@@ -1,26 +1,31 @@
 import uuid
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
-if TYPE_CHECKING:
-    from app.models.span import Span
 
-
-class Trace(Base):
-    __tablename__ = "traces"
+class Span(Base):
+    __tablename__ = "spans"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
     )
+    trace_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("traces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    start_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    end_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     metadata_: Mapped[dict | None] = mapped_column(
         "metadata",
         JSONB,
@@ -32,6 +37,4 @@ class Trace(Base):
         default=lambda: datetime.now(timezone.utc),
     )
 
-    spans: Mapped[list["Span"]] = relationship(
-        "Span", back_populates="trace", cascade="all, delete-orphan"
-    )
+    trace = relationship("Trace", back_populates="spans")

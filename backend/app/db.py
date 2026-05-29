@@ -39,6 +39,7 @@ def create_tables() -> None:
     # Import every model module so their Table objects are registered on Base.metadata
     # before create_all() runs.
     import app.models.trace  # noqa: F401
+    import app.models.span   # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
