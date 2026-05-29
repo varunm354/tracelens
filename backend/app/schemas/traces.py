@@ -20,3 +20,10 @@ class TraceResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TraceListResponse(BaseModel):
+    items: list[TraceResponse]
+    total: int
+    limit: int
+    offset: int
