@@ -4,48 +4,105 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* --- Surfaces --- */
+    --background: 220 20% 97%;
+    --foreground: 222 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 222 20% 12%;
+
+    /* --- Interactive --- */
+    --primary: 222 20% 12%;
+    --primary-foreground: 220 20% 97%;
+    --secondary: 220 15% 93%;
+    --secondary-foreground: 222 20% 20%;
+    --muted: 220 15% 93%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 220 15% 90%;
+    --accent-foreground: 222 20% 12%;
+
+    /* --- Feedback --- */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
+
+    /* --- Borders & inputs --- */
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 258 85% 60%;
     --radius: 0.5rem;
+
+    /* --- Brand accent (violet) --- */
+    --brand: 258 85% 60%;
+
+    /* --- Span kind colors --- */
+    /* bar/accent color + muted badge background per kind */
+    --kind-retrieval:       214 90% 48%;
+    --kind-retrieval-muted: 214 100% 92%;
+
+    --kind-llm:             268 72% 55%;
+    --kind-llm-muted:       268 100% 94%;
+
+    --kind-tool:            27 90% 50%;
+    --kind-tool-muted:      27 100% 93%;
+
+    --kind-evaluation:      152 60% 40%;
+    --kind-evaluation-muted:152 80% 90%;
+
+    --kind-function:        220 10% 45%;
+    --kind-function-muted:  220 15% 92%;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    /* --- Surfaces --- */
+    /* Blue-shifted near-black — avoids pure-black flatness (Linear/Vercel style) */
+    --background: 222 26% 7%;
+    --foreground: 210 20% 92%;
+
+    /* Cards sit visibly above background — this was the main dark-mode bug */
+    --card: 222 22% 10%;
+    --card-foreground: 210 20% 92%;
+    --popover: 222 22% 12%;
+    --popover-foreground: 210 20% 92%;
+
+    /* --- Interactive --- */
+    --primary: 210 20% 92%;
+    --primary-foreground: 222 26% 7%;
+    --secondary: 222 18% 14%;
+    --secondary-foreground: 210 20% 80%;
+    --muted: 222 18% 13%;
+    --muted-foreground: 220 12% 50%;
+    --accent: 222 18% 16%;
+    --accent-foreground: 210 20% 92%;
+
+    /* --- Feedback --- */
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 210 20% 92%;
+
+    /* --- Borders & inputs --- */
+    /* Border must be lighter than muted to be visible on card surfaces */
+    --border: 222 16% 19%;
+    --input: 222 18% 13%;
+    --ring: 258 85% 65%;
+
+    /* --- Brand accent (violet) --- */
+    --brand: 258 85% 65%;
+
+    /* --- Span kind colors (vivid for dark backgrounds) --- */
+    --kind-retrieval:       214 90% 62%;
+    --kind-retrieval-muted: 214 75% 16%;
+
+    --kind-llm:             268 72% 65%;
+    --kind-llm-muted:       268 60% 16%;
+
+    --kind-tool:            27 90% 60%;
+    --kind-tool-muted:      27 80% 14%;
+
+    --kind-evaluation:      152 60% 50%;
+    --kind-evaluation-muted:152 50% 12%;
+
+    --kind-function:        220 10% 55%;
+    --kind-function-muted:  220 10% 16%;
   }
 }
 
@@ -55,5 +112,19 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
+
+/* Waterfall bar grow-in animation */
+@layer utilities {
+  @keyframes grow-x {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(1); }
+  }
+
+  .animate-grow-x {
+    animation: grow-x 0.35s ease-out forwards;
+    transform-origin: left center;
   }
 }

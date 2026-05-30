@@ -1,8 +1,7 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { getTrace, getSpans, getEvaluations } from '@/lib/api'
 import { cn, formatRelativeTime, shortId } from '@/lib/utils'
 import type { Evaluation } from '@/lib/types'
@@ -208,21 +207,9 @@ function TraceHeader({ traceId }: { traceId: string }) {
 // ---------------------------------------------------------------------------
 
 export function TraceDetail({ traceId }: { traceId: string }) {
-  const router = useRouter()
-
   return (
-    <div className="max-w-4xl">
-      {/* Back navigation */}
-      <button
-        onClick={() => router.push('/traces')}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground
-                   transition-colors mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        All Traces
-      </button>
-
-      {/* Trace header */}
+    <div className="max-w-5xl">
+      {/* Trace metadata header */}
       <div className="mb-8">
         <TraceHeader traceId={traceId} />
       </div>
