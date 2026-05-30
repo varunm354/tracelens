@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { JetBrains_Mono } from 'next/font/google'
-import { Providers } from '@/app/providers'
-import { Sidebar } from '@/components/layout/Sidebar'
 import './globals.css'
 
 const inter = Inter({
@@ -39,14 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.variable} ${mono.variable} font-sans antialiased`}>
-        <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 overflow-auto bg-background">
-              {children}
-            </main>
-          </div>
-        </Providers>
+        {children}
       </body>
     </html>
   )
