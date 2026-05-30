@@ -1,6 +1,6 @@
 'use client'
 
-import { cn } from '@/lib/utils'
+import { cn, formatDuration } from '@/lib/utils'
 import type { Span, SpanKind } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
@@ -42,12 +42,6 @@ function buildTimeline(spans: Span[]): Timeline {
   const startMs = Math.min(...starts)
   const endMs = Math.max(...(ends.length > 0 ? ends : starts))
   return { startMs, totalMs: Math.max(endMs - startMs, 1) }
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`
-  return `${(ms / 60_000).toFixed(1)}m`
 }
 
 function spanDurationMs(span: Span): number | null {

@@ -3,39 +3,40 @@
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle } from 'lucide-react'
 import { getTrace, getSpans, getEvaluations } from '@/lib/api'
-import { cn, formatRelativeTime, shortId } from '@/lib/utils'
+import {
+  cn,
+  formatRelativeTime,
+  shortId,
+  formatDuration,
+  computeSpanDurationMs,
+} from '@/lib/utils'
 import type { Evaluation } from '@/lib/types'
 import { SpanWaterfall } from '@/components/traces/SpanWaterfall'
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Score threshold helpers
+// ---------------------------------------------------------------------------
+
+type ScoreLevel = 'pass' | 'warn' | 'fail'
+
+function scoreLevel(value: number): ScoreLevel {
+  if (value >= 0.8) return 'pass'
+  if (value >= 0.5) return 'warn'
+  return 'fail'
+}
+
+/** Returns a CSS hsl() string using the appropriate --score-* token. */
+function scoreColor(value: number): string {
+  return `hsl(var(--score-${scoreLevel(value)}))`
+}
+
+// ---------------------------------------------------------------------------
+// Shared primitives
 // ---------------------------------------------------------------------------
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded bg-muted', className)} />
 }
-
-function ScorePill({ label, value }: { label: string; value: number }) {
-  const color =
-    value >= 0.8
-      ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40'
-      : value >= 0.5
-        ? 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/40'
-        : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/40'
-
-  return (
-    <div className="flex flex-col items-center gap-0.5">
-      <span className={cn('rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums', color)}>
-        {(value * 100).toFixed(0)}%
-      </span>
-      <span className="text-[11px] text-muted-foreground">{label}</span>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Section wrappers
-// ---------------------------------------------------------------------------
 
 function SectionHeader({ title, count }: { title: string; count?: number }) {
   return (
@@ -64,88 +65,6 @@ function ErrorSection({ message }: { message: string }) {
       <AlertCircle className="w-4 h-4 shrink-0" />
       {message}
     </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Spans section
-// ---------------------------------------------------------------------------
-
-function SpansSection({ traceId }: { traceId: string }) {
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ['spans', traceId],
-    queryFn: () => getSpans(traceId),
-  })
-
-  return (
-    <section>
-      <SectionHeader title="Spans" count={data?.total} />
-      {isPending && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 w-full" />
-          ))}
-        </div>
-      )}
-      {isError && <ErrorSection message={(error as Error).message} />}
-      {data && data.items.length === 0 && (
-        <EmptySection message="No spans recorded for this trace." />
-      )}
-      {data && data.items.length > 0 && <SpanWaterfall spans={data.items} />}
-    </section>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Evaluations section
-// ---------------------------------------------------------------------------
-
-function EvaluationRow({ evaluation }: { evaluation: Evaluation }) {
-  return (
-    <div className="px-4 py-4 border-b border-border last:border-0">
-      <div className="flex items-center gap-6">
-        <ScorePill label="Relevance" value={evaluation.relevance_score} />
-        <ScorePill label="Faithfulness" value={evaluation.faithfulness_score} />
-        <ScorePill label="Groundedness" value={evaluation.groundedness_score} />
-      </div>
-      {evaluation.notes && (
-        <p className="mt-3 text-sm text-muted-foreground">{evaluation.notes}</p>
-      )}
-      <p className="mt-2 font-mono text-xs text-muted-foreground/60">
-        {shortId(evaluation.evaluation_id)}… · {formatRelativeTime(evaluation.created_at)}
-      </p>
-    </div>
-  )
-}
-
-function EvaluationsSection({ traceId }: { traceId: string }) {
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ['evaluations', traceId],
-    queryFn: () => getEvaluations(traceId),
-  })
-
-  return (
-    <section>
-      <SectionHeader title="Evaluations" count={data?.total} />
-      {isPending && (
-        <div className="space-y-3">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full" />
-          ))}
-        </div>
-      )}
-      {isError && <ErrorSection message={(error as Error).message} />}
-      {data && data.items.length === 0 && (
-        <EmptySection message="No evaluations recorded for this trace." />
-      )}
-      {data && data.items.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden bg-card">
-          {data.items.map((ev) => (
-            <EvaluationRow key={ev.evaluation_id} evaluation={ev} />
-          ))}
-        </div>
-      )}
-    </section>
   )
 }
 
@@ -184,7 +103,6 @@ function TraceHeader({ traceId }: { traceId: string }) {
           {formatRelativeTime(data.created_at)}
         </span>
       </div>
-
       {metaEntries.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {metaEntries.map(([key, value]) => (
@@ -203,18 +121,261 @@ function TraceHeader({ traceId }: { traceId: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Trace overview band
+// ---------------------------------------------------------------------------
+
+interface StatCardProps {
+  label: string
+  value: string
+  loading?: boolean
+  valueColor?: string
+}
+
+function StatCard({ label, value, loading, valueColor }: StatCardProps) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3.5">
+      <p className="text-xs text-muted-foreground mb-1.5 uppercase tracking-wider font-medium">
+        {label}
+      </p>
+      {loading ? (
+        <Skeleton className="h-6 w-16 mt-0.5" />
+      ) : (
+        <p
+          className="text-xl font-semibold font-mono tabular-nums leading-none"
+          style={valueColor ? { color: valueColor } : undefined}
+        >
+          {value}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function TraceOverview({ traceId }: { traceId: string }) {
+  // These share query keys with SpansSection and EvaluationsSection below.
+  // TanStack Query deduplicates the network requests; both components read
+  // from the same cached result.
+  const spansQuery = useQuery({
+    queryKey: ['spans', traceId],
+    queryFn: () => getSpans(traceId),
+  })
+
+  const evalsQuery = useQuery({
+    queryKey: ['evaluations', traceId],
+    queryFn: () => getEvaluations(traceId),
+  })
+
+  const totalDurationMs =
+    spansQuery.data ? computeSpanDurationMs(spansQuery.data.items) : null
+
+  let avgScore: number | null = null
+  if (evalsQuery.data && evalsQuery.data.items.length > 0) {
+    const all = evalsQuery.data.items.flatMap((ev) => [
+      ev.relevance_score,
+      ev.faithfulness_score,
+      ev.groundedness_score,
+    ])
+    avgScore = all.reduce((a, b) => a + b, 0) / all.length
+  }
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <StatCard
+        label="Duration"
+        value={totalDurationMs != null ? formatDuration(totalDurationMs) : '—'}
+        loading={spansQuery.isPending}
+      />
+      <StatCard
+        label="Spans"
+        value={spansQuery.data ? String(spansQuery.data.total) : '—'}
+        loading={spansQuery.isPending}
+      />
+      <StatCard
+        label="Evaluations"
+        value={evalsQuery.data ? String(evalsQuery.data.total) : '—'}
+        loading={evalsQuery.isPending}
+      />
+      <StatCard
+        label="Avg Score"
+        value={avgScore != null ? `${Math.round(avgScore * 100)}%` : '—'}
+        loading={evalsQuery.isPending}
+        valueColor={avgScore != null ? scoreColor(avgScore) : undefined}
+      />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Spans section
+// ---------------------------------------------------------------------------
+
+function SpansSection({ traceId }: { traceId: string }) {
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['spans', traceId],
+    queryFn: () => getSpans(traceId),
+  })
+
+  return (
+    <section>
+      <SectionHeader title="Spans" count={data?.total} />
+      {isPending && (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full" />
+          ))}
+        </div>
+      )}
+      {isError && <ErrorSection message={(error as Error).message} />}
+      {data && data.items.length === 0 && (
+        <EmptySection message="No spans recorded for this trace." />
+      )}
+      {data && data.items.length > 0 && <SpanWaterfall spans={data.items} />}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation score gauge
+// ---------------------------------------------------------------------------
+
+function ScoreGauge({ label, value }: { label: string; value: number }) {
+  const pct = Math.round(value * 100)
+  const color = scoreColor(value)
+
+  return (
+    <div className="flex items-center gap-3">
+      {/* Fixed-width label so all gauges align */}
+      <span className="w-28 shrink-0 text-sm text-muted-foreground">{label}</span>
+
+      {/* Track + fill */}
+      <div className="flex-1 h-1.5 rounded-full overflow-hidden bg-muted/50">
+        <div
+          className="h-full rounded-full animate-grow-x"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+
+      {/* Numeric value */}
+      <span
+        className="w-9 text-right font-mono text-sm font-semibold tabular-nums"
+        style={{ color }}
+      >
+        {pct}%
+      </span>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Evaluation card
+// ---------------------------------------------------------------------------
+
+function EvaluationCard({ evaluation }: { evaluation: Evaluation }) {
+  const avgScore =
+    (evaluation.relevance_score +
+      evaluation.faithfulness_score +
+      evaluation.groundedness_score) /
+    3
+  const level = scoreLevel(avgScore)
+  const avgColor = scoreColor(avgScore)
+
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      {/* Card header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-mono text-xs text-muted-foreground">
+            {shortId(evaluation.evaluation_id)}…
+          </span>
+          <span className="text-muted-foreground/40 shrink-0">·</span>
+          <span
+            className="text-xs text-muted-foreground truncate"
+            title={evaluation.created_at}
+          >
+            {formatRelativeTime(evaluation.created_at)}
+          </span>
+        </div>
+
+        {/* Average score badge */}
+        <span
+          className="shrink-0 ml-3 font-mono text-xs font-semibold px-2 py-0.5 rounded-full"
+          style={{
+            backgroundColor: `hsl(var(--score-${level}) / 0.15)`,
+            color: avgColor,
+          }}
+        >
+          avg {Math.round(avgScore * 100)}%
+        </span>
+      </div>
+
+      {/* Score gauges */}
+      <div className="space-y-2.5">
+        <ScoreGauge label="Relevance" value={evaluation.relevance_score} />
+        <ScoreGauge label="Faithfulness" value={evaluation.faithfulness_score} />
+        <ScoreGauge label="Groundedness" value={evaluation.groundedness_score} />
+      </div>
+
+      {/* Optional notes */}
+      {evaluation.notes && (
+        <p className="mt-4 pt-3 border-t border-border text-sm text-muted-foreground leading-relaxed">
+          {evaluation.notes}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Evaluations section
+// ---------------------------------------------------------------------------
+
+function EvaluationsSection({ traceId }: { traceId: string }) {
+  const { data, isPending, isError, error } = useQuery({
+    queryKey: ['evaluations', traceId],
+    queryFn: () => getEvaluations(traceId),
+  })
+
+  return (
+    <section>
+      <SectionHeader title="Evaluations" count={data?.total} />
+      {isPending && (
+        <div className="space-y-3">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      )}
+      {isError && <ErrorSection message={(error as Error).message} />}
+      {data && data.items.length === 0 && (
+        <EmptySection message="No evaluations recorded for this trace." />
+      )}
+      {data && data.items.length > 0 && (
+        <div className="space-y-3">
+          {data.items.map((ev) => (
+            <EvaluationCard key={ev.evaluation_id} evaluation={ev} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Root export
 // ---------------------------------------------------------------------------
 
 export function TraceDetail({ traceId }: { traceId: string }) {
   return (
     <div className="max-w-5xl">
-      {/* Trace metadata header */}
-      <div className="mb-8">
+      {/* Trace name, ID, timestamp, metadata */}
+      <div className="mb-5">
         <TraceHeader traceId={traceId} />
       </div>
 
-      {/* Sections */}
+      {/* At-a-glance stats: duration, span count, eval count, avg score */}
+      <TraceOverview traceId={traceId} />
+
+      {/* Detailed sections */}
       <div className="space-y-8">
         <SpansSection traceId={traceId} />
         <EvaluationsSection traceId={traceId} />

@@ -35,3 +35,36 @@ export function shortId(uuid: string): string {
   return uuid.slice(0, 8)
 }
 
+/**
+ * Format a duration in milliseconds into a human-readable string.
+ * Used by both SpanWaterfall bars and the TraceOverview duration stat.
+ */
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`
+  if (ms < 60_000) return `${(ms / 1000).toFixed(2)}s`
+  return `${(ms / 60_000).toFixed(1)}m`
+}
+
+/**
+ * Compute the wall-clock span covered by a set of timed spans.
+ * Returns null when no spans carry start/end timestamps.
+ * Accepts a structural subtype so it works without importing the full Span type.
+ */
+export function computeSpanDurationMs(
+  spans: Array<{ start_time: string | null; end_time: string | null }>,
+): number | null {
+  const starts = spans
+    .filter((s) => s.start_time != null)
+    .map((s) => new Date(s.start_time!).getTime())
+
+  const ends = spans
+    .filter((s) => s.end_time != null)
+    .map((s) => new Date(s.end_time!).getTime())
+
+  if (starts.length === 0) return null
+
+  const earliest = Math.min(...starts)
+  const latest = Math.max(...(ends.length > 0 ? ends : starts))
+  return Math.max(latest - earliest, 0)
+}
+

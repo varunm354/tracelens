@@ -35,6 +35,11 @@
     /* --- Brand accent (violet) --- */
     --brand: 258 85% 60%;
 
+    /* --- Evaluation score thresholds --- */
+    --score-pass: 142 65% 40%;
+    --score-warn: 38  88% 48%;
+    --score-fail: 0   80% 56%;
+
     /* --- Span kind colors --- */
     /* bar/accent color + muted badge background per kind */
     --kind-retrieval:       214 90% 48%;
@@ -87,6 +92,11 @@
 
     /* --- Brand accent (violet) --- */
     --brand: 258 85% 65%;
+
+    /* --- Evaluation score thresholds --- */
+    --score-pass: 142 65% 52%;
+    --score-warn: 38  92% 58%;
+    --score-fail: 0   72% 58%;
 
     /* --- Span kind colors (vivid for dark backgrounds) --- */
     --kind-retrieval:       214 90% 62%;
