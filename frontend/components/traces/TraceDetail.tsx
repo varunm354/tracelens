@@ -2,10 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, AlertCircle, Clock, Tag } from 'lucide-react'
+import { ArrowLeft, AlertCircle } from 'lucide-react'
 import { getTrace, getSpans, getEvaluations } from '@/lib/api'
 import { cn, formatRelativeTime, shortId } from '@/lib/utils'
-import type { Span, Evaluation, SpanKind } from '@/lib/types'
+import type { Evaluation } from '@/lib/types'
+import { SpanWaterfall } from '@/components/traces/SpanWaterfall'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -13,27 +14,6 @@ import type { Span, Evaluation, SpanKind } from '@/lib/types'
 
 function Skeleton({ className }: { className?: string }) {
   return <div className={cn('animate-pulse rounded bg-muted', className)} />
-}
-
-const KIND_STYLES: Record<SpanKind, string> = {
-  retrieval: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  llm: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  tool: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  evaluation: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  function: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400',
-}
-
-function KindBadge({ kind }: { kind: SpanKind }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize',
-        KIND_STYLES[kind] ?? KIND_STYLES.function,
-      )}
-    >
-      {kind}
-    </span>
-  )
 }
 
 function ScorePill({ label, value }: { label: string; value: number }) {
@@ -52,13 +32,6 @@ function ScorePill({ label, value }: { label: string; value: number }) {
       <span className="text-[11px] text-muted-foreground">{label}</span>
     </div>
   )
-}
-
-function durationMs(start: string | null, end: string | null): string | null {
-  if (!start || !end) return null
-  const ms = new Date(end).getTime() - new Date(start).getTime()
-  if (ms < 0) return null
-  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(2)}s`
 }
 
 // ---------------------------------------------------------------------------
@@ -99,37 +72,6 @@ function ErrorSection({ message }: { message: string }) {
 // Spans section
 // ---------------------------------------------------------------------------
 
-function SpanRow({ span }: { span: Span }) {
-  const dur = durationMs(span.start_time, span.end_time)
-  const metaCount = span.metadata ? Object.keys(span.metadata).length : 0
-
-  return (
-    <div className="flex items-start gap-3 px-4 py-3 border-b border-border last:border-0">
-      <div className="mt-0.5">
-        <KindBadge kind={span.kind} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{span.name}</p>
-        <div className="flex items-center gap-3 mt-1">
-          <span className="font-mono text-xs text-muted-foreground">{shortId(span.span_id)}…</span>
-          {dur && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="w-3 h-3" />
-              {dur}
-            </span>
-          )}
-          {metaCount > 0 && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Tag className="w-3 h-3" />
-              {metaCount} {metaCount === 1 ? 'key' : 'keys'}
-            </span>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function SpansSection({ traceId }: { traceId: string }) {
   const { data, isPending, isError, error } = useQuery({
     queryKey: ['spans', traceId],
@@ -142,19 +84,15 @@ function SpansSection({ traceId }: { traceId: string }) {
       {isPending && (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full" />
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       )}
       {isError && <ErrorSection message={(error as Error).message} />}
-      {data && data.items.length === 0 && <EmptySection message="No spans recorded for this trace." />}
-      {data && data.items.length > 0 && (
-        <div className="rounded-lg border border-border overflow-hidden bg-card">
-          {data.items.map((span) => (
-            <SpanRow key={span.span_id} span={span} />
-          ))}
-        </div>
+      {data && data.items.length === 0 && (
+        <EmptySection message="No spans recorded for this trace." />
       )}
+      {data && data.items.length > 0 && <SpanWaterfall spans={data.items} />}
     </section>
   )
 }
