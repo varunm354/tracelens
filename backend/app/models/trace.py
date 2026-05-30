@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 
 if TYPE_CHECKING:
+    from app.models.evaluation import Evaluation
     from app.models.span import Span
 
 
@@ -34,4 +35,7 @@ class Trace(Base):
 
     spans: Mapped[list["Span"]] = relationship(
         "Span", back_populates="trace", cascade="all, delete-orphan"
+    )
+    evaluations: Mapped[list["Evaluation"]] = relationship(
+        "Evaluation", back_populates="trace", cascade="all, delete-orphan"
     )
