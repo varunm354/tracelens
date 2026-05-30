@@ -1,0 +1,12 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Install deps from package.json baked into the image.
+# The source is mounted at runtime via a volume so changes hot-reload
+# without rebuilding. The anonymous /app/node_modules volume keeps the
+# container's node_modules intact even when the bind mount overlays /app.
+COPY package.json package-lock.json* ./
+RUN npm install
+
+EXPOSE 3000
+CMD ["npm", "run", "dev"]

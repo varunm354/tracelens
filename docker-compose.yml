@@ -33,5 +33,23 @@ services:
           path: ./backend
           target: /app
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # NEXT_PUBLIC_API_URL must be reachable from the browser (host machine),
+      # not from inside the container — so localhost:8000 is correct here.
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules   # preserves container's node_modules from the image
+      - /app/.next          # preserves Next.js build cache
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
