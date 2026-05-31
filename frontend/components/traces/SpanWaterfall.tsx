@@ -1,14 +1,13 @@
 'use client'
 
-import { cn, formatDuration } from '@/lib/utils'
+import { useState } from 'react'
+import { cn, formatDuration, spanDurationMs } from '@/lib/utils'
 import type { Span, SpanKind } from '@/lib/types'
 
 // ---------------------------------------------------------------------------
 // CSS-variable-based color helpers
-// Each span kind has two tokens defined in globals.css:
 //   --kind-<name>        → bar / accent color (full saturation)
 //   --kind-<name>-muted  → badge background (muted tint)
-// Both respond correctly to dark/light mode from a single source of truth.
 // ---------------------------------------------------------------------------
 
 function kindBarColor(kind: SpanKind): string {
@@ -44,13 +43,6 @@ function buildTimeline(spans: Span[]): Timeline {
   return { startMs, totalMs: Math.max(endMs - startMs, 1) }
 }
 
-function spanDurationMs(span: Span): number | null {
-  if (!span.start_time || !span.end_time) return null
-  const ms = new Date(span.end_time).getTime() - new Date(span.start_time).getTime()
-  return ms >= 0 ? ms : null
-}
-
-// Sort spans by start_time ascending; spans without timing sink to the bottom.
 function sortedByStartTime(spans: Span[]): Span[] {
   return [...spans].sort((a, b) => {
     if (!a.start_time) return 1
@@ -60,7 +52,7 @@ function sortedByStartTime(spans: Span[]): Span[] {
 }
 
 // ---------------------------------------------------------------------------
-// Timeline header row: tick labels at 0, midpoint, and total
+// Timeline header row
 // ---------------------------------------------------------------------------
 
 function TimelineHeader({ totalMs }: { totalMs: number }) {
@@ -74,8 +66,14 @@ function TimelineHeader({ totalMs }: { totalMs: number }) {
       <div className="flex-1 px-2 py-1.5">
         <div className="relative h-4">
           <span className="absolute left-0 font-mono text-[10px] text-muted-foreground">0</span>
+          <span className="absolute left-1/4 -translate-x-1/2 font-mono text-[10px] text-muted-foreground/70">
+            {formatDuration(Math.round(totalMs / 4))}
+          </span>
           <span className="absolute left-1/2 -translate-x-1/2 font-mono text-[10px] text-muted-foreground">
             {formatDuration(Math.round(totalMs / 2))}
+          </span>
+          <span className="absolute left-3/4 -translate-x-1/2 font-mono text-[10px] text-muted-foreground/70">
+            {formatDuration(Math.round((totalMs * 3) / 4))}
           </span>
           <span className="absolute right-0 font-mono text-[10px] text-muted-foreground">
             {formatDuration(totalMs)}
@@ -87,10 +85,20 @@ function TimelineHeader({ totalMs }: { totalMs: number }) {
 }
 
 // ---------------------------------------------------------------------------
-// Individual span row
+// Span row
 // ---------------------------------------------------------------------------
 
-function WaterfallRow({ span, timeline }: { span: Span; timeline: Timeline }) {
+function WaterfallRow({
+  span,
+  timeline,
+  selected,
+  onSelect,
+}: {
+  span: Span
+  timeline: Timeline
+  selected: boolean
+  onSelect: () => void
+}) {
   const durMs = spanDurationMs(span)
   const hasTimeline = timeline.totalMs > 0 && span.start_time != null
 
@@ -100,34 +108,38 @@ function WaterfallRow({ span, timeline }: { span: Span; timeline: Timeline }) {
   if (hasTimeline) {
     const spanStartMs = new Date(span.start_time!).getTime()
     offsetPct = ((spanStartMs - timeline.startMs) / timeline.totalMs) * 100
-
-    if (durMs != null && durMs > 0) {
-      widthPct = (durMs / timeline.totalMs) * 100
-    }
-    // Minimum visible width so even instant spans appear as a sliver
+    if (durMs != null && durMs > 0) widthPct = (durMs / timeline.totalMs) * 100
     widthPct = Math.max(widthPct, 0.5)
   }
 
-  // Determine if the duration label fits to the right of the bar.
-  // If the bar ends past 85% of the track, flip the label inside the bar
-  // (right-aligned, white text) to prevent overflow.
   const barEnd = offsetPct + widthPct
   const labelFlip = barEnd > 85
 
   return (
-    <div className="flex items-center border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-      {/* Label column: kind badge + span name */}
-      <div className="w-52 shrink-0 flex items-center gap-2 px-3 py-2.5">
+    <button
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        'flex w-full items-center border-b border-border text-left transition-colors last:border-0',
+        selected ? 'bg-accent/60' : 'hover:bg-muted/30',
+      )}
+    >
+      {/* Label column */}
+      <div className="relative flex w-52 shrink-0 items-center gap-2 px-3 py-2.5">
+        {selected && (
+          <span
+            aria-hidden
+            className="absolute left-0 top-0 h-full w-0.5"
+            style={{ backgroundColor: kindBarColor(span.kind) }}
+          />
+        )}
         <span
-          className="shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize"
-          style={{
-            backgroundColor: kindMutedColor(span.kind),
-            color: kindBarColor(span.kind),
-          }}
+          className="inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize"
+          style={{ backgroundColor: kindMutedColor(span.kind), color: kindBarColor(span.kind) }}
         >
           {span.kind}
         </span>
-        <span className="text-xs font-medium truncate" title={span.name}>
+        <span className="truncate text-xs font-medium" title={span.name}>
           {span.name}
         </span>
       </div>
@@ -135,25 +147,21 @@ function WaterfallRow({ span, timeline }: { span: Span; timeline: Timeline }) {
       {/* Bar column */}
       <div className="flex-1 px-2 py-2.5">
         {hasTimeline ? (
-          <div className="relative h-5 flex items-center overflow-hidden rounded">
-            {/* Faint track shows the full time axis */}
+          <div className="relative flex h-5 items-center overflow-hidden rounded">
             <div className="absolute inset-0 bg-muted/30" />
-
-            {/* Colored span bar with grow-in animation */}
             <div
-              className={cn('absolute h-full rounded animate-grow-x')}
+              className="absolute h-full rounded animate-grow-x"
               style={{
                 backgroundColor: kindBarColor(span.kind),
                 left: `${offsetPct.toFixed(2)}%`,
                 width: `${widthPct.toFixed(2)}%`,
+                boxShadow: selected ? `0 0 10px ${kindBarColor(span.kind)}` : undefined,
               }}
             />
-
-            {/* Duration label — floats right of bar, or flips inside when near right edge */}
             {durMs != null && (
               <span
                 className={cn(
-                  'absolute font-mono text-[10px] whitespace-nowrap z-10 pointer-events-none',
+                  'pointer-events-none absolute z-10 whitespace-nowrap font-mono text-[10px]',
                   labelFlip ? 'text-white/80' : 'text-foreground/60',
                 )}
                 style={
@@ -170,6 +178,78 @@ function WaterfallRow({ span, timeline }: { span: Span; timeline: Timeline }) {
           <span className="text-xs italic text-muted-foreground/40">no timing</span>
         )}
       </div>
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Selected span detail strip
+// ---------------------------------------------------------------------------
+
+function SpanDetails({ span, timeline }: { span: Span; timeline: Timeline }) {
+  const durMs = spanDurationMs(span)
+  const startOffset =
+    span.start_time != null && timeline.totalMs > 0
+      ? new Date(span.start_time).getTime() - timeline.startMs
+      : null
+  const endOffset =
+    span.end_time != null && timeline.totalMs > 0
+      ? new Date(span.end_time).getTime() - timeline.startMs
+      : null
+
+  const metaEntries = span.metadata ? Object.entries(span.metadata) : []
+
+  const facts: Array<{ label: string; value: string }> = [
+    { label: 'Kind', value: span.kind },
+    { label: 'Duration', value: durMs != null ? formatDuration(durMs) : '—' },
+    { label: 'Start', value: startOffset != null ? `+${formatDuration(startOffset)}` : '—' },
+    { label: 'End', value: endOffset != null ? `+${formatDuration(endOffset)}` : '—' },
+  ]
+
+  return (
+    <div className="border-t border-border bg-muted/15 px-4 py-3">
+      <div className="flex items-center gap-2">
+        <span
+          className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium capitalize"
+          style={{ backgroundColor: kindMutedColor(span.kind), color: kindBarColor(span.kind) }}
+        >
+          {span.kind}
+        </span>
+        <span className="text-sm font-medium">{span.name}</span>
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {facts.map((f) => (
+          <div key={f.label} className="rounded-lg border border-border bg-card px-2.5 py-1.5">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{f.label}</p>
+            <p className="mt-0.5 font-mono text-xs font-medium capitalize tabular-nums">{f.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-3">
+        <p className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+          Span ID
+        </p>
+        <p className="break-all font-mono text-[11px] text-muted-foreground">{span.span_id}</p>
+      </div>
+
+      {metaEntries.length > 0 && (
+        <div className="mt-3">
+          <p className="mb-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">Metadata</p>
+          <div className="flex flex-wrap gap-1.5">
+            {metaEntries.map(([k, v]) => (
+              <span
+                key={k}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2 py-0.5 font-mono text-[11px]"
+              >
+                <span className="text-muted-foreground">{k}</span>
+                <span>{typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -181,13 +261,28 @@ function WaterfallRow({ span, timeline }: { span: Span; timeline: Timeline }) {
 export function SpanWaterfall({ spans }: { spans: Span[] }) {
   const sorted = sortedByStartTime(spans)
   const timeline = buildTimeline(sorted)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = sorted.find((s) => s.span_id === selectedId) ?? null
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden bg-card text-sm">
+    <div className="overflow-hidden rounded-xl border border-border bg-card text-sm">
       {timeline.totalMs > 0 && <TimelineHeader totalMs={timeline.totalMs} />}
       {sorted.map((span) => (
-        <WaterfallRow key={span.span_id} span={span} timeline={timeline} />
+        <WaterfallRow
+          key={span.span_id}
+          span={span}
+          timeline={timeline}
+          selected={span.span_id === selectedId}
+          onSelect={() => setSelectedId((prev) => (prev === span.span_id ? null : span.span_id))}
+        />
       ))}
+      {selected ? (
+        <SpanDetails span={selected} timeline={timeline} />
+      ) : (
+        <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground/70">
+          Select a span to see its timing and metadata.
+        </p>
+      )}
     </div>
   )
 }

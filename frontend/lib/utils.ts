@@ -46,6 +46,20 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * Duration of a single span in milliseconds, or null when it lacks timing
+ * (or has a negative/invalid range). Shared by the waterfall and the latency
+ * breakdown so they agree on per-span durations.
+ */
+export function spanDurationMs(span: {
+  start_time: string | null
+  end_time: string | null
+}): number | null {
+  if (!span.start_time || !span.end_time) return null
+  const ms = new Date(span.end_time).getTime() - new Date(span.start_time).getTime()
+  return ms >= 0 ? ms : null
+}
+
+/**
  * Compute the wall-clock span covered by a set of timed spans.
  * Returns null when no spans carry start/end timestamps.
  * Accepts a structural subtype so it works without importing the full Span type.

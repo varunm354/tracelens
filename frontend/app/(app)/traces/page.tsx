@@ -1,5 +1,5 @@
 import { PageHeader } from '@/components/layout/PageHeader'
-import { TraceTable } from '@/components/traces/TraceTable'
+import { TracesView } from '@/components/dashboard/TracesView'
 
 export default function TracesPage() {
   return (
@@ -9,7 +9,7 @@ export default function TracesPage() {
         description="All traces ingested from your AI pipelines."
       />
       <div className="px-6 py-5">
-        <TraceTable />
+        <TracesView />
       </div>
     </>
   )
