@@ -28,7 +28,12 @@ export function MarketingFooter() {
           <Link href="/traces" className="transition-colors hover:text-foreground">
             Dashboard
           </Link>
-          <a href="#" className="transition-colors hover:text-foreground">
+          <a
+            href="https://github.com/varunm354/tracelens"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-foreground"
+          >
             GitHub
           </a>
           <span className="font-mono text-xs">© {year}</span>

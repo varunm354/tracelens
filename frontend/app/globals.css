@@ -138,3 +138,234 @@
     transform-origin: left center;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Marketing landing-page background treatments (used under (marketing)) */
+/* ------------------------------------------------------------------ */
+@layer utilities {
+  /* Subtle dot/line grid texture. Fades out toward edges via the mask. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.35) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.35) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Radial fade mask so a texture/glow dissolves toward the edges. */
+  .mask-radial-faded {
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, #000 40%, transparent 100%);
+  }
+
+  /* Slow drifting glow used behind hero / CTA. */
+  @keyframes glow-drift {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.55; }
+    50%      { transform: translate3d(0, -3%, 0) scale(1.08); opacity: 0.8; }
+  }
+
+  .animate-glow-drift {
+    animation: glow-drift 14s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-glow-drift {
+      animation: none;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Premium motion / depth / glow systems (Phase 8.3 polish)           */
+/* Layered ambient glows, grain, animated trace paths, sheen sweeps,  */
+/* spotlight borders, and floating nodes. All gated for reduced motion.*/
+/* ------------------------------------------------------------------ */
+@layer utilities {
+  /* --- Layered ambient aurora -------------------------------------- */
+  /* A second, slower, counter-drifting glow for parallax-y depth.     */
+  @keyframes glow-drift-slow {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); opacity: 0.35; }
+    50%      { transform: translate3d(4%, 4%, 0) scale(1.15); opacity: 0.6; }
+  }
+  .animate-glow-drift-slow {
+    animation: glow-drift-slow 22s ease-in-out infinite;
+  }
+
+  @keyframes glow-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50%      { opacity: 0.85; transform: scale(1.06); }
+  }
+  .animate-glow-pulse {
+    animation: glow-pulse 5s ease-in-out infinite;
+  }
+
+  /* --- Fine grain to kill gradient banding (adds "expensive" depth) - */
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+  }
+
+  /* --- Conic spotlight border for premium cards -------------------- */
+  /* Uses a masked conic gradient ring that brightens on hover.        */
+  .border-glow {
+    position: relative;
+  }
+  .border-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--glow-angle, 0deg),
+      transparent 0deg,
+      hsl(var(--brand) / 0.6) 40deg,
+      transparent 120deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .border-glow:hover::before {
+    opacity: 1;
+    animation: border-spin 4s linear infinite;
+  }
+  @property --glow-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+  @keyframes border-spin {
+    to { --glow-angle: 360deg; }
+  }
+
+  /* --- Pointer-follow spotlight surface ---------------------------- */
+  /* Reads --mx / --my (px, set in JS) to place a soft radial highlight.*/
+  .spotlight-surface {
+    position: relative;
+  }
+  .spotlight-surface::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+      18rem 18rem at var(--mx, 50%) var(--my, 0%),
+      hsl(var(--brand) / 0.12),
+      transparent 60%
+    );
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+  }
+  .spotlight-surface:hover::after {
+    opacity: 1;
+  }
+
+  /* --- Sheen sweep (diagonal light pass over a panel) -------------- */
+  @keyframes sheen-sweep {
+    0%   { transform: translateX(-150%) skewX(-12deg); }
+    100% { transform: translateX(250%) skewX(-12deg); }
+  }
+  .sheen-sweep {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  .sheen-sweep::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 40%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      hsl(var(--foreground) / 0.07),
+      transparent
+    );
+    animation: sheen-sweep 6s ease-in-out infinite;
+    animation-delay: 1.5s;
+  }
+
+  /* --- Button sheen (sweeps across CTA on hover) ------------------- */
+  .btn-sheen { position: relative; overflow: hidden; }
+  .btn-sheen::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 45%;
+    transform: translateX(-180%) skewX(-18deg);
+    background: linear-gradient(
+      100deg,
+      transparent,
+      hsl(0 0% 100% / 0.35),
+      transparent
+    );
+    transition: transform 0.7s ease;
+  }
+  .btn-sheen:hover::after {
+    transform: translateX(320%) skewX(-18deg);
+  }
+
+  /* --- Flowing trace dash (data traveling along a path) ------------ */
+  @keyframes trace-flow {
+    to { stroke-dashoffset: -1000; }
+  }
+  .animate-trace-flow {
+    animation: trace-flow 18s linear infinite;
+  }
+
+  /* --- Floating node drift (ambient particles) --------------------- */
+  @keyframes node-float {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50%      { transform: translate3d(0, -14px, 0); }
+  }
+  .animate-node-float {
+    animation: node-float var(--float-dur, 9s) ease-in-out infinite;
+    animation-delay: var(--float-delay, 0s);
+  }
+
+  /* --- Slow vertical scan line (over dashboard frame) -------------- */
+  @keyframes scan-down {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    8%   { opacity: 1; }
+    92%  { opacity: 1; }
+    100% { transform: translateY(2000%); opacity: 0; }
+  }
+  .animate-scan {
+    animation: scan-down 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  /* --- Animated gradient text (the "AI" word) ---------------------- */
+  @keyframes text-gradient-pan {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+  .animate-text-gradient {
+    background-size: 200% auto;
+    animation: text-gradient-pan 6s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-glow-drift-slow,
+    .animate-glow-pulse,
+    .animate-trace-flow,
+    .animate-node-float,
+    .animate-scan,
+    .animate-text-gradient,
+    .sheen-sweep::before,
+    .border-glow:hover::before {
+      animation: none !important;
+    }
+  }
+}
