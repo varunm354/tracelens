@@ -2,8 +2,10 @@
 
 MetricResult carries the output of a single judge metric.
 RAGJudge is a Protocol that any judge implementation must satisfy —
-swap HeuristicRAGJudge for an LLM-backed judge in Phase 9.3B without touching
-the runner or route.
+both HeuristicRAGJudge and LLMRAGJudge implement it via duck-typing.
+
+Protocol signature uses optional kwargs so new arguments (reference_answer,
+metadata) can be added without breaking existing implementations.
 """
 
 from dataclasses import dataclass, field
@@ -29,8 +31,8 @@ class RAGJudge(Protocol):
     """Replaceable judge interface.
 
     Implementations must expose `evaluator`, `judge_version`, and `evaluate()`.
-    Both HeuristicRAGJudge (Phase 9.3A) and any future LLM judge (Phase 9.3B)
-    must satisfy this protocol without requiring explicit inheritance.
+    `reference_answer` and `metadata` are optional so the protocol remains
+    backward-compatible as the signature evolves.
     """
 
     evaluator: str
@@ -41,6 +43,8 @@ class RAGJudge(Protocol):
         question: str,
         contexts: list[dict[str, Any]],
         answer: str,
+        reference_answer: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> list[MetricResult]:
         """Return one MetricResult per metric, in a deterministic order."""
         ...

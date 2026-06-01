@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.models.evaluation_result import EvaluationResult
 from app.models.rag_observation import RAGObservation
@@ -70,8 +71,9 @@ def _to_response(obs: RAGObservation) -> RAGObservationResponse:
     summary="Ingest a RAG observation",
     description=(
         "Store a question/answer/context tuple for a trace. "
-        "When `auto_evaluate=true` the heuristic judge runs synchronously and "
+        "When `auto_evaluate=true` the configured judge runs synchronously and "
         "evaluation results are included in the response. "
+        "Use `judge` to override the default judge for this request. "
         "`create_spans` is reserved for a future phase. "
         "Returns 404 if the trace does not exist."
     ),
@@ -100,7 +102,8 @@ def create_rag_observation(
     db.refresh(obs)
 
     if body.auto_evaluate:
-        run_rag_evaluation(db, obs.id)
+        judge_name = body.judge or get_settings().tracelens_eval_judge
+        run_rag_evaluation(db, obs.id, judge_name=judge_name)
         db.commit()
         db.refresh(obs)
 

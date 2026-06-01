@@ -32,6 +32,23 @@ class Settings(BaseSettings):
     # Storing as str bypasses that; cors_origins is exposed as list[str] below.
     cors_origins_raw: str = Field("http://localhost:3000", validation_alias="cors_origins")
 
+    # --- LLM / Evaluation judge -------------------------------------------
+    # openai_api_key: set to enable the LLM judge.  Left empty → LLM judge
+    # immediately falls back to heuristic with fallback_reason="missing_api_key".
+    openai_api_key: str = ""
+
+    # Default judge used when a POST /rag request omits the `judge` field.
+    # "heuristic" (default) makes no external API calls and has no cost.
+    # "llm"       uses OpenAI with automatic heuristic fallback.
+    # Any other value is silently treated as "heuristic" by build_judge().
+    tracelens_eval_judge: str = "heuristic"
+
+    # OpenAI model used by the LLM judge.
+    tracelens_llm_judge_model: str = "gpt-4.1-mini"
+
+    # Seconds before the OpenAI HTTP call is considered timed out.
+    tracelens_llm_judge_timeout_seconds: int = 20
+
     @computed_field
     @property
     def cors_origins(self) -> list[str]:

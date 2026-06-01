@@ -7,7 +7,12 @@ Lifecycle:
   "skipped"  — set by the ingest route when auto_evaluate=False
   "running"  — set optimistically by run_rag_evaluation before the judge fires
   "complete" — set on success
-  "failed"   — set when the judge raises an unexpected exception
+  "failed"   — set when the judge raises past the fallback safety net
+
+Judge resolution order (most-specific wins):
+  1. Explicit `judge=` kwarg  (test injection / direct callers)
+  2. build_judge(judge_name)  (request-level override, e.g. body.judge="llm")
+  3. build_judge(settings.tracelens_eval_judge)  (env-configured default)
 
 The runner does NOT commit.  Transaction management is the caller's (route's)
 responsibility; this keeps the function simple and testable in isolation.
@@ -20,32 +25,32 @@ from sqlalchemy.orm import Session
 
 from app.models.evaluation_result import EvaluationResult
 from app.models.rag_observation import RAGObservation
-from app.services.evaluation.heuristic_judge import HeuristicRAGJudge
+from app.services.evaluation.factory import build_judge
 from app.services.evaluation.types import RAGJudge
 
 logger = logging.getLogger(__name__)
-
-# Module-level judge singleton.  Swap this for an LLM judge in Phase 9.3B
-# by replacing the instance or injecting a different RAGJudge implementation.
-_default_judge: RAGJudge = HeuristicRAGJudge()
 
 
 def run_rag_evaluation(
     db: Session,
     rag_observation_id: uuid.UUID,
     *,
-    judge: RAGJudge = _default_judge,
+    judge: RAGJudge | None = None,
+    judge_name: str | None = None,
 ) -> list[EvaluationResult]:
-    """Run *judge* against the named RAGObservation and persist metric rows.
+    """Run a judge against the named RAGObservation and persist metric rows.
 
     Args:
-        db: Active SQLAlchemy session.  Caller must commit after this returns.
-        rag_observation_id: PK of the target RAGObservation.
-        judge: RAGJudge implementation (defaults to the heuristic judge).
+        db:                  Active SQLAlchemy session.  Caller must commit.
+        rag_observation_id:  PK of the target RAGObservation.
+        judge:               Explicit RAGJudge instance (tests / direct callers).
+                             When provided, judge_name is ignored.
+        judge_name:          "heuristic" | "llm" | None.  When None the env
+                             default (tracelens_eval_judge) is used.
 
     Returns:
         List of EvaluationResult ORM objects added to the session.
-        On judge failure the list contains a single failed EvaluationResult.
+        On catastrophic failure the list contains a single failed row.
 
     Raises:
         ValueError: If the RAGObservation is not found in the session.
@@ -53,6 +58,14 @@ def run_rag_evaluation(
     obs: RAGObservation | None = db.get(RAGObservation, rag_observation_id)
     if obs is None:
         raise ValueError(f"RAGObservation {rag_observation_id} not found")
+
+    # Resolve judge: explicit injection beats factory lookup.
+    if judge is None:
+        from app.config import get_settings  # noqa: PLC0415 — lazy to avoid circularity
+
+        settings = get_settings()
+        resolved_name = judge_name or settings.tracelens_eval_judge
+        judge = build_judge(resolved_name, settings=settings)
 
     obs.evaluation_status = "running"
     db.flush()
@@ -62,6 +75,7 @@ def run_rag_evaluation(
             question=obs.question,
             contexts=obs.contexts or [],
             answer=obs.answer,
+            reference_answer=obs.reference_answer,
         )
     except Exception as exc:
         logger.exception(

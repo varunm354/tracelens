@@ -105,9 +105,15 @@ class HeuristicRAGJudge:
         question: str,
         contexts: list[dict[str, Any]],
         answer: str,
+        reference_answer: str | None = None,  # accepted but not used by heuristic
+        metadata: dict[str, Any] | None = None,  # accepted but not used by heuristic
     ) -> list[MetricResult]:
         """Return four MetricResult objects: context_relevance, faithfulness,
-        answer_quality, overall."""
+        answer_quality, overall.
+
+        `reference_answer` and `metadata` are accepted to satisfy the RAGJudge
+        Protocol but are not used in heuristic scoring.
+        """
         q_tok = _tokens(question)
         a_tok = _tokens(answer)
         ctx_tok = _context_tokens(contexts)

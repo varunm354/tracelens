@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -66,8 +66,17 @@ class RAGObservationCreate(BaseModel):
     auto_evaluate: bool = Field(
         default=False,
         description=(
-            "When true, the heuristic judge runs synchronously and evaluation "
+            "When true, the configured judge runs synchronously and evaluation "
             "results are returned in the response. Set false to skip evaluation."
+        ),
+    )
+    judge: Literal["heuristic", "llm"] | None = Field(
+        default=None,
+        description=(
+            "Override the default judge for this request. "
+            "'heuristic' uses deterministic word-overlap scoring (no API key required). "
+            "'llm' uses the OpenAI judge with heuristic fallback. "
+            "Omit to use the server default (TRACELENS_EVAL_JUDGE env var)."
         ),
     )
     create_spans: bool = Field(

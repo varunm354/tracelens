@@ -24,6 +24,12 @@ dev = [
     "httpx>=0.27.0",       # for FastAPI TestClient
     "ruff>=0.4.0",
 ]
+# Install the LLM judge extra to enable OpenAI-backed evaluation:
+#   pip install -e ".[llm]"
+# The openai package is lazily imported; the app starts without it.
+llm = [
+    "openai>=1.0.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
