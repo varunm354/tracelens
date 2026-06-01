@@ -10,6 +10,8 @@ from app.db import Base
 
 if TYPE_CHECKING:
     from app.models.evaluation import Evaluation
+    from app.models.evaluation_result import EvaluationResult
+    from app.models.rag_observation import RAGObservation
     from app.models.span import Span
 
 
@@ -38,4 +40,14 @@ class Trace(Base):
     )
     evaluations: Mapped[list["Evaluation"]] = relationship(
         "Evaluation", back_populates="trace", cascade="all, delete-orphan"
+    )
+    rag_observations: Mapped[list["RAGObservation"]] = relationship(
+        "RAGObservation",
+        back_populates="trace",
+        cascade="all, delete-orphan",
+    )
+    evaluation_results: Mapped[list["EvaluationResult"]] = relationship(
+        "EvaluationResult",
+        back_populates="trace",
+        cascade="all, delete-orphan",
     )

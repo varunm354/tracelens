@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import create_tables
-from app.routes import evaluations, health, spans, traces
+from app.routes import evaluations, health, rag, spans, traces
 
 settings = get_settings()
 
@@ -37,3 +37,4 @@ app.include_router(health.router)
 app.include_router(traces.router)
 app.include_router(spans.router)
 app.include_router(evaluations.router)
+app.include_router(rag.router)
