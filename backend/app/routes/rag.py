@@ -14,6 +14,7 @@ from app.schemas.rag import (
     RAGObservationListResponse,
     RAGObservationResponse,
 )
+from app.services.evaluation.runner import run_rag_evaluation
 
 router = APIRouter(prefix="/v1/traces/{trace_id}/rag", tags=["rag"])
 
@@ -69,7 +70,9 @@ def _to_response(obs: RAGObservation) -> RAGObservationResponse:
     summary="Ingest a RAG observation",
     description=(
         "Store a question/answer/context tuple for a trace. "
-        "`auto_evaluate` and `create_spans` are accepted but reserved for a future phase. "
+        "When `auto_evaluate=true` the heuristic judge runs synchronously and "
+        "evaluation results are included in the response. "
+        "`create_spans` is reserved for a future phase. "
         "Returns 404 if the trace does not exist."
     ),
 )
@@ -95,6 +98,12 @@ def create_rag_observation(
     db.add(obs)
     db.commit()
     db.refresh(obs)
+
+    if body.auto_evaluate:
+        run_rag_evaluation(db, obs.id)
+        db.commit()
+        db.refresh(obs)
+
     return _to_response(obs)
 
 

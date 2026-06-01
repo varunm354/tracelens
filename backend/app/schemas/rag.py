@@ -65,7 +65,10 @@ class RAGObservationCreate(BaseModel):
     metadata: dict[str, Any] | None = Field(default=None)
     auto_evaluate: bool = Field(
         default=False,
-        description="Reserved for future use. Judge is not yet implemented.",
+        description=(
+            "When true, the heuristic judge runs synchronously and evaluation "
+            "results are returned in the response. Set false to skip evaluation."
+        ),
     )
     create_spans: bool = Field(
         default=False,
