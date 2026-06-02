@@ -1,5 +1,7 @@
 # tracelens Python SDK
 
+> For a product overview, architecture diagram, and quick start, see the [root README](../README.md).
+
 Python SDK for [TraceLens](https://github.com/varunmohanraj/tracelens) — observability and evaluation for RAG and AI agent systems.
 
 ## Installation

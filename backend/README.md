@@ -1,5 +1,7 @@
 # TraceLens — Backend
 
+> For a product overview, architecture diagram, and quick start, see the [root README](../README.md).
+
 FastAPI backend for the TraceLens observability platform.
 
 ## Requirements
