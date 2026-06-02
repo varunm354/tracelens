@@ -52,3 +52,46 @@ export interface EvaluationListResponse {
   items: Evaluation[]
   total: number
 }
+
+// ---------------------------------------------------------------------------
+// RAG observations + generated evaluation results (Phase 9.4)
+// ---------------------------------------------------------------------------
+
+export interface RagEvaluationResult {
+  evaluation_result_id: string
+  trace_id: string
+  rag_observation_id: string | null
+  span_id: string | null
+  metric: string
+  score: number | null
+  reason: string | null
+  source: string
+  evaluator: string | null
+  judge_version: string | null
+  status: string
+  error: string | null
+  /** Includes judge_type, model, prompt_version, fallback_used, fallback_reason */
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+export interface RagObservation {
+  rag_observation_id: string
+  trace_id: string
+  question: string
+  answer: string
+  model: string | null
+  contexts: Array<Record<string, unknown>>
+  latency_ms: number | null
+  usage: Record<string, unknown> | null
+  reference_answer: string | null
+  metadata: Record<string, unknown> | null
+  evaluation_status: 'skipped' | 'running' | 'complete' | 'failed' | string
+  created_at: string
+  evaluations: RagEvaluationResult[]
+}
+
+export interface RagObservationListResponse {
+  items: RagObservation[]
+  total: number
+}

@@ -3,6 +3,7 @@ import type {
   Trace,
   SpanListResponse,
   EvaluationListResponse,
+  RagObservationListResponse,
 } from '@/lib/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
@@ -33,4 +34,8 @@ export function getSpans(traceId: string): Promise<SpanListResponse> {
 
 export function getEvaluations(traceId: string): Promise<EvaluationListResponse> {
   return apiFetch<EvaluationListResponse>(`/v1/traces/${traceId}/evaluations`)
+}
+
+export function getRagObservations(traceId: string): Promise<RagObservationListResponse> {
+  return apiFetch<RagObservationListResponse>(`/v1/traces/${traceId}/rag`)
 }

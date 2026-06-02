@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, Timer, GitBranch, ClipboardCheck, Gauge } from 'lucide-react'
-import { getTrace, getSpans, getEvaluations } from '@/lib/api'
+import { getTrace, getSpans, getEvaluations, getRagObservations } from '@/lib/api'
 import { cn, formatRelativeTime, formatDuration, computeSpanDurationMs } from '@/lib/utils'
 import { averageEvaluationScore, scoreColor, deriveHealth } from '@/lib/metrics'
 import { MetricCard } from '@/components/dashboard/MetricCard'
@@ -11,6 +11,7 @@ import { Panel } from '@/components/dashboard/Panel'
 import { MetadataPanel } from '@/components/dashboard/MetadataPanel'
 import { LatencyBreakdown } from '@/components/dashboard/LatencyBreakdown'
 import { EvaluationPanel } from '@/components/dashboard/EvaluationPanel'
+import { RAGEvaluationPanel } from '@/components/dashboard/RAGEvaluationPanel'
 import { RawDataPanel } from '@/components/dashboard/RawDataPanel'
 import { SpanWaterfall } from '@/components/traces/SpanWaterfall'
 
@@ -35,6 +36,11 @@ export function TraceDetail({ traceId }: { traceId: string }) {
   const traceQ = useQuery({ queryKey: ['trace', traceId], queryFn: () => getTrace(traceId) })
   const spansQ = useQuery({ queryKey: ['spans', traceId], queryFn: () => getSpans(traceId) })
   const evalsQ = useQuery({ queryKey: ['evaluations', traceId], queryFn: () => getEvaluations(traceId) })
+  const ragQ = useQuery({
+    queryKey: ['rag', traceId],
+    queryFn: () => getRagObservations(traceId),
+    staleTime: 60_000,
+  })
 
   const spans = spansQ.data?.items ?? []
   const evaluations = evalsQ.data?.items ?? []
@@ -180,6 +186,25 @@ export function TraceDetail({ traceId }: { traceId: string }) {
           )}
         </div>
       </div>
+
+      {/* --- RAG Evaluations ----------------------------------------------- */}
+      {(ragQ.isPending || ragQ.isError || (ragQ.data?.total ?? 0) > 0) && (
+        <div className="mt-6">
+          {ragQ.isError ? (
+            <ErrorSection message={`Failed to load RAG evaluations: ${(ragQ.error as Error).message}`} />
+          ) : ragQ.isPending ? (
+            <Panel title="RAG Evaluations">
+              <div className="space-y-3">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full" />
+                ))}
+              </div>
+            </Panel>
+          ) : (
+            <RAGEvaluationPanel observations={ragQ.data!.items} />
+          )}
+        </div>
+      )}
 
       {/* --- Raw data ------------------------------------------------------ */}
       <div className="mt-6">
