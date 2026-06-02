@@ -65,7 +65,7 @@ export function EvaluationPanel({ evaluations }: { evaluations: Evaluation[] }) 
 
   return (
     <Panel
-      title="Evaluations"
+      title="Trace Evaluations"
       count={evaluations.length}
       actions={
         overall != null && level ? (
